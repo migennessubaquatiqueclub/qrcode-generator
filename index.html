@@ -3,55 +3,351 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Générateur QR Code</title>
+<title>QR Code Generator</title>
 
 <!-- Librairie QRCode -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
 <style>
+    * {
+    box-sizing: border-box;
+    }
+
     body {
-    font-family: Arial;
-    padding: 40px;
+    margin: 0;
+    padding: 40px 20px;
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    }
+
+    .container {
+    width: 100%;
+    max-width: 500px;
+    background: white;
+    padding: 30px;
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+    margin-top: 0;
     text-align: center;
     }
 
+    label {
+    display: block;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    font-weight: bold;
+    }
+
     input {
-    width: 300px;
-    padding: 10px;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
     font-size: 16px;
     }
 
     button {
-    padding: 10px 20px;
-    margin-left: 10px;
+    width: 100%;
+    padding: 14px;
+    margin-top: 18px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
     cursor: pointer;
+    transition: 0.2s;
+    }
+
+    button:hover {
+    transform: translateY(-1px);
+    }
+
+    .generate-btn {
+    background: #2563eb;
+    color: white;
+    }
+
+    .download-btn {
+    background: black;
+    color: white;
+    }
+
+    .canvas-wrapper {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
     }
 
     canvas {
-    margin-top: 30px;
+    background: white;
+    border-radius: 14px;
+    border: 1px solid #e5e5e5;
+    max-width: 100%;
+    }
+
+    .hint {
+    margin-top: 10px;
+    color: #666;
+    font-size: 14px;
+    text-align: center;
     }
 </style>
 </head>
 <body>
 
-<h1>Générateur de QR Code</h1>
+<div class="container">
 
-<input type="text" id="text" placeholder="Entre un texte ou une URL">
-<button onclick="generateQR()">Générer</button>
+    <h1>Générateur QR Code</h1>
 
-<br>
+    <label>Texte ou URL</label>
+    <input
+    type="text"
+    id="text"
+    placeholder="https://example.com"
+    >
 
-<canvas id="qrcode"></canvas>
+    <label>Taille du QR code</label>
+    <input
+    type="number"
+    id="size"
+    value="300"
+    min="100"
+    max="1200"
+    >
+
+    <label>Logo au centre (optionnel)</label>
+    <input
+    type="file"
+    id="logoInput"
+    accept="image/*"
+    >
+
+    <button
+    class="generate-btn"
+    onclick="generateQR()"
+    >
+    Générer le QR Code
+    </button>
+
+    <div class="canvas-wrapper">
+    <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="hint">
+    Le QR code reste permanent tant que le lien existe.
+    </div>
+
+    <button
+    class="download-btn"
+    onclick="downloadQR()"
+    >
+    Télécharger PNG
+    </button>
+
+</div>
 
 <script>
-    function generateQR() {
-    const text = document.getElementById("text").value;
-    const canvas = document.getElementById("qrcode");
 
-    QRCode.toCanvas(canvas, text, function (error) {
-        if (error) console.error(error);
-    });
+    async function generateQR() {
+
+    const text = document.getElementById("text").value.trim();
+
+    const size = parseInt(
+        document.getElementById("size").value
+    );
+
+    const canvas = document.getElementById("canvas");
+
+    const logoInput =
+        document.getElementById("logoInput");
+
+    if (!text) {
+        alert("Entre un texte ou une URL");
+        return;
     }
+
+    // Génération du QR code
+    await QRCode.toCanvas(canvas, text, {
+
+        width: size,
+
+        margin: 2,
+
+        errorCorrectionLevel: "H",
+
+        color: {
+        dark: "#000000",
+        light: "#ffffff"
+        }
+
+    });
+
+    // Ajouter le logo si présent
+    if (logoInput.files.length > 0) {
+
+        const ctx = canvas.getContext("2d");
+
+        const logo = new Image();
+
+        logo.src = URL.createObjectURL(
+        logoInput.files[0]
+        );
+
+        logo.onload = () => {
+
+        const maxLogoSize = size * 0.22;
+
+        const imgWidth = logo.width;
+        const imgHeight = logo.height;
+
+        let drawWidth = maxLogoSize;
+        let drawHeight = maxLogoSize;
+
+        // Garder les proportions
+        if (imgWidth > imgHeight) {
+
+            drawHeight =
+            (imgHeight / imgWidth) * maxLogoSize;
+
+        } else {
+
+            drawWidth =
+            (imgWidth / imgHeight) * maxLogoSize;
+        }
+
+        const x =
+            (canvas.width - drawWidth) / 2;
+
+        const y =
+            (canvas.height - drawHeight) / 2;
+
+        // Fond blanc arrondi
+        const padding = 10;
+        const radius = 14;
+
+        ctx.fillStyle = "white";
+
+        roundRect(
+            ctx,
+            x - padding,
+            y - padding,
+            drawWidth + padding * 2,
+            drawHeight + padding * 2,
+            radius
+        );
+
+        ctx.fill();
+
+        // Logo circulaire premium
+        ctx.save();
+
+        ctx.beginPath();
+
+        ctx.arc(
+            canvas.width / 2,
+            canvas.height / 2,
+            Math.max(drawWidth, drawHeight) / 2,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.closePath();
+
+        ctx.clip();
+
+        ctx.drawImage(
+            logo,
+            x,
+            y,
+            drawWidth,
+            drawHeight
+        );
+
+        ctx.restore();
+        };
+    }
+    }
+
+    // Télécharger le QR code
+    function downloadQR() {
+
+    const canvas =
+        document.getElementById("canvas");
+
+    const link =
+        document.createElement("a");
+
+    link.download = "qrcode.png";
+
+    link.href =
+        canvas.toDataURL("image/png");
+
+    link.click();
+    }
+
+    // Rectangle arrondi
+    function roundRect(
+    ctx,
+    x,
+    y,
+    width,
+    height,
+    radius
+    ) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(x + radius, y);
+
+    ctx.lineTo(x + width - radius, y);
+
+    ctx.quadraticCurveTo(
+        x + width,
+        y,
+        x + width,
+        y + radius
+    );
+
+    ctx.lineTo(
+        x + width,
+        y + height - radius
+    );
+
+    ctx.quadraticCurveTo(
+        x + width,
+        y + height,
+        x + width - radius,
+        y + height
+    );
+
+    ctx.lineTo(
+        x + radius,
+        y + height
+    );
+
+    ctx.quadraticCurveTo(
+        x,
+        y + height,
+        x,
+        y + height - radius
+    );
+
+    ctx.lineTo(x, y + radius);
+
+    ctx.quadraticCurveTo(
+        x,
+        y,
+        x + radius,
+        y
+    );
+
+    ctx.closePath();
+    }
+
 </script>
 
 </body>
